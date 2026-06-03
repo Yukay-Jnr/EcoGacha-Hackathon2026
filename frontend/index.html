@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoGacha — Scan. Sort. Earn.</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body class="auth-page">
+
+  <div class="auth-bg">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <div class="auth-container">
+    <div class="auth-brand">
+      <div class="logo-mark">♻</div>
+      <h1 class="brand-name">EcoGacha</h1>
+      <p class="brand-tagline">Scan your waste. Earn EcoTokens.</p>
+    </div>
+
+    <!-- Tab switcher -->
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="showTab('login')">Log In</button>
+      <button class="tab-btn" onclick="showTab('register')">Register</button>
+    </div>
+
+    <!-- Login form -->
+    <div id="tab-login" class="auth-form active">
+      <div class="form-group">
+        <label>Matric Number</label>
+        <input type="text" id="login-matric" placeholder="e.g. TU/2021/CS/001" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <button class="btn-primary" onclick="handleLogin()">Log In</button>
+      <p id="login-msg" class="form-msg"></p>
+    </div>
+
+    <!-- Register form -->
+    <div id="tab-register" class="auth-form">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="reg-name" placeholder="Your full name" />
+      </div>
+      <div class="form-group">
+        <label>Matric Number</label>
+        <input type="text" id="reg-matric" placeholder="e.g. TU/2021/CS/001" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="you@topfaith.edu.ng" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="reg-password" placeholder="At least 6 characters" />
+      </div>
+      <button class="btn-primary" onclick="handleRegister()">Create Account</button>
+      <p id="reg-msg" class="form-msg"></p>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    function showTab(tab) {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".auth-form").forEach(f => f.classList.remove("active"));
+      document.querySelector(`#tab-${tab}`).classList.add("active");
+      event.target.classList.add("active");
+    }
+
+    async function handleLogin() {
+      const matric = document.getElementById("login-matric").value.trim();
+      const password = document.getElementById("login-password").value;
+      const msg = document.getElementById("login-msg");
+      msg.textContent = "Logging in...";
+      msg.className = "form-msg";
+
+      const res = await api("/api/auth/login", "POST", { matric_number: matric, password });
+      if (res.error) {
+        msg.textContent = res.error;
+        msg.classList.add("error");
+      } else {
+        localStorage.setItem("student", JSON.stringify(res.student));
+        window.location.href = "dashboard.html";
+      }
+    }
+
+    async function handleRegister() {
+      const name = document.getElementById("reg-name").value.trim();
+      const matric = document.getElementById("reg-matric").value.trim();
+      const email = document.getElementById("reg-email").value.trim();
+      const password = document.getElementById("reg-password").value;
+      const msg = document.getElementById("reg-msg");
+      msg.textContent = "Creating account...";
+      msg.className = "form-msg";
+
+      const res = await api("/api/auth/register", "POST", { name, matric_number: matric, email, password });
+      if (res.error) {
+        msg.textContent = res.error;
+        msg.classList.add("error");
+      } else {
+        msg.textContent = "Account created! Logging you in...";
+        msg.classList.add("success");
+        setTimeout(() => showTab("login"), 1200);
+      }
+    }
+  </script>
+</body>
+</html>

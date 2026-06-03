@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoGacha — Scan Waste</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="nav-brand">♻ EcoGacha</a>
+    <div class="nav-links">
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="leaderboard.html" class="nav-link">Leaderboard</a>
+      <button class="btn-logout" onclick="logout()">Log Out</button>
+    </div>
+  </nav>
+
+  <main class="page scan-page">
+
+    <div class="scan-header">
+      <h2 class="page-title">Scan Waste</h2>
+      <p class="page-sub">Upload a photo of your waste item and the AI will classify it.</p>
+    </div>
+
+    <!-- Upload zone -->
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-inner" id="upload-inner">
+        <div class="upload-icon">📷</div>
+        <p class="upload-text">Click to upload an image</p>
+        <p class="upload-hint">JPG, PNG — clear photo of one item</p>
+      </div>
+      <img id="preview-img" class="preview-img hidden" alt="Waste preview" />
+    </div>
+    <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)" />
+
+    <div class="camera-action-row">
+      <button class="btn-secondary" type="button" onclick="openCamera()">Use Camera</button>
+    </div>
+
+    <div class="camera-pane hidden" id="camera-pane">
+      <video id="camera-stream" class="camera-stream" autoplay playsinline muted></video>
+      <div class="camera-controls">
+        <button class="btn-secondary" type="button" onclick="captureCameraPhoto()">Take Photo</button>
+        <button class="btn-secondary" type="button" onclick="stopCamera()">Cancel Camera</button>
+      </div>
+    </div>
+
+    <button class="btn-primary btn-scan" id="scan-btn" onclick="submitScan()" disabled>
+      Classify &amp; Earn
+    </button>
+
+    <!-- Result card — hidden until scan -->
+    <div class="result-card hidden" id="result-card">
+      <div class="result-header">
+        <div class="result-category" id="result-category">—</div>
+        <div class="result-confidence" id="result-confidence"></div>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-item">
+          <span class="result-label">Dispose In</span>
+          <span class="result-value" id="result-disposal">—</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">Decomposition</span>
+          <span class="result-value" id="result-decomp">—</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">Marine Risk</span>
+          <span class="result-value" id="result-marine">—</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">Gacha Tier</span>
+          <span class="result-value" id="result-tier">—</span>
+        </div>
+      </div>
+
+      <div class="gacha-reveal" id="gacha-reveal">
+        <div class="gacha-label">You earned</div>
+        <div class="gacha-tokens" id="gacha-tokens">0</div>
+        <div class="gacha-unit">EcoTokens</div>
+      </div>
+
+      <div class="eco-tip" id="eco-tip">
+        <span class="tip-icon">🌿</span>
+        <p id="tip-text"></p>
+      </div>
+
+      <button class="btn-secondary" onclick="resetScan()">Scan Another</button>
+    </div>
+
+    <div class="loading-overlay hidden" id="loading">
+      <div class="spinner"></div>
+      <p>AI is classifying your waste...</p>
+    </div>
+
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    const student = requireAuth();
+    let selectedFile = null;
+    let cameraStream = null;
+
+    function setSelectedFile(file, previewUrl) {
+      selectedFile = file;
+      const img = document.getElementById("preview-img");
+      img.src = previewUrl;
+      img.classList.remove("hidden");
+      document.getElementById("upload-inner").classList.add("hidden");
+      document.getElementById("camera-pane").classList.add("hidden");
+      document.getElementById("scan-btn").removeAttribute("disabled");
+    }
+
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = ev => {
+        setSelectedFile(file, ev.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function openCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Camera access is not supported in this browser.");
+        return;
+      }
+
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        const video = document.getElementById("camera-stream");
+        video.srcObject = cameraStream;
+        document.getElementById("camera-pane").classList.remove("hidden");
+        document.getElementById("upload-inner").classList.add("hidden");
+        document.getElementById("preview-img").classList.add("hidden");
+      } catch (err) {
+        alert("Unable to open the camera. Please check permissions or use file upload.");
+      }
+    }
+
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+      document.getElementById("camera-pane").classList.add("hidden");
+      document.getElementById("upload-inner").classList.remove("hidden");
+    }
+
+    function captureCameraPhoto() {
+      if (!cameraStream) return;
+      const video = document.getElementById("camera-stream");
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        if (!blob) return;
+        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+        setSelectedFile(file, URL.createObjectURL(blob));
+        stopCamera();
+      }, "image/jpeg", 0.92);
+    }
+
+    async function submitScan() {
+      if (!selectedFile) return;
+
+      document.getElementById("loading").classList.remove("hidden");
+      document.getElementById("scan-btn").setAttribute("disabled", true);
+
+      const formData = new FormData();
+      formData.append("image", selectedFile);
+      formData.append("student_id", student.id);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/scan/classify`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        document.getElementById("loading").classList.add("hidden");
+
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+
+        showResult(data);
+        student.tokens += data.tokens_earned;
+        student.total_scans += 1;
+        localStorage.setItem("student", JSON.stringify(student));
+      } catch (err) {
+        document.getElementById("loading").classList.add("hidden");
+        alert("Could not reach the server. Is the backend running?");
+      }
+    }
+
+    function showResult(data) {
+      document.getElementById("result-category").textContent = capitalize(data.category);
+      document.getElementById("result-category").className = `result-category waste-tag ${data.category}`;
+      document.getElementById("result-confidence").textContent = `${data.confidence}% confident${data.demo_mode ? " (demo)" : ""}`;
+      document.getElementById("result-disposal").textContent = data.disposal;
+      document.getElementById("result-decomp").textContent = data.decomp;
+      document.getElementById("result-marine").textContent = data.marine_risk;
+
+      const tier = data.gacha_tier;
+      const tierEl = document.getElementById("result-tier");
+      tierEl.textContent = tier;
+      tierEl.className = `result-value tier-${tier.toLowerCase()}`;
+
+      document.getElementById("gacha-tokens").textContent = `+${data.tokens_earned}`;
+      document.getElementById("gacha-reveal").className = `gacha-reveal tier-bg-${tier.toLowerCase()}`;
+
+      document.getElementById("tip-text").textContent = data.eco_tip;
+
+      document.getElementById("result-card").classList.remove("hidden");
+      document.getElementById("result-card").scrollIntoView({ behavior: "smooth" });
+    }
+
+    function resetScan() {
+      selectedFile = null;
+      document.getElementById("file-input").value = "";
+      stopCamera();
+      document.getElementById("preview-img").classList.add("hidden");
+      document.getElementById("upload-inner").classList.remove("hidden");
+      document.getElementById("scan-btn").setAttribute("disabled", true);
+      document.getElementById("result-card").classList.add("hidden");
+    }
+  </script>
+</body>
+</html>
