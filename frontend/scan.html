@@ -26,13 +26,13 @@
       <p class="page-sub">Take a photo or upload an image — the AI will classify it and award EcoTokens.</p>
     </div>
 
-    <!-- Mode switcher: Camera vs Upload -->
+    <!-- Mode switcher -->
     <div class="input-mode-row">
       <button class="mode-btn active" id="mode-camera" onclick="switchMode('camera')">📷 Use Camera</button>
       <button class="mode-btn" id="mode-upload" onclick="switchMode('upload')">📁 Upload Image</button>
     </div>
 
-    <!-- ── CAMERA MODE ── -->
+    <!-- CAMERA MODE -->
     <div id="camera-section">
       <div class="camera-zone" id="camera-zone">
         <p class="camera-prompt" id="camera-prompt">Click "Start Camera" to begin</p>
@@ -42,12 +42,13 @@
       <div style="display:flex; gap:0.75rem; margin-top:0.75rem;">
         <button class="btn-capture" id="btn-start-cam" onclick="startCamera()">Start Camera</button>
         <button class="btn-capture hidden" id="btn-capture" onclick="capturePhoto()" style="background:var(--teal)">📸 Capture</button>
-        <button class="btn-capture hidden" id="btn-stop-cam" onclick="stopCamera()" style="background:transparent; border:1px solid var(--border); color:var(--text-muted);">Stop</button>
+        <button class="btn-capture hidden" id="btn-stop-cam" onclick="stopCameraStream()" style="background:transparent; border:1px solid var(--border); color:var(--text-muted);">Stop</button>
       </div>
+      <!-- captured photo stays visible here until Scan Another is clicked -->
       <img id="camera-preview" class="preview-img hidden" alt="Captured photo" style="margin-top:0.75rem; width:100%; border-radius:var(--radius);" />
     </div>
 
-    <!-- ── UPLOAD MODE ── -->
+    <!-- UPLOAD MODE -->
     <div id="upload-section" class="hidden">
       <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
         <div class="upload-inner" id="upload-inner">
@@ -65,7 +66,7 @@
       Classify &amp; Earn
     </button>
 
-    <!-- Result card — hidden until scan -->
+    <!-- Result card — stays visible until Scan Another is clicked -->
     <div class="result-card hidden" id="result-card">
       <div class="result-header">
         <div class="result-category" id="result-category">—</div>
@@ -97,7 +98,7 @@
         <div class="gacha-unit">EcoTokens</div>
       </div>
 
-      <div class="eco-tip" id="eco-tip">
+      <div class="eco-tip">
         <span class="tip-icon">🌿</span>
         <p id="tip-text"></p>
       </div>
@@ -120,18 +121,17 @@
     let currentMode = "camera";
 
     // ── Mode switching ──
+    // Only switches the visible panel. Does NOT reset or hide the result card.
     function switchMode(mode) {
       currentMode = mode;
       document.getElementById("mode-camera").classList.toggle("active", mode === "camera");
       document.getElementById("mode-upload").classList.toggle("active", mode === "upload");
       document.getElementById("camera-section").classList.toggle("hidden", mode !== "camera");
       document.getElementById("upload-section").classList.toggle("hidden", mode !== "upload");
-
-      if (mode !== "camera") stopCamera();
-      resetScan();
+      if (mode !== "camera") stopCameraStream();
     }
 
-    // ── Camera functions ──
+    // ── Camera ──
     async function startCamera() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
@@ -144,7 +144,6 @@
         document.getElementById("btn-stop-cam").classList.remove("hidden");
       } catch (err) {
         alert("Camera access denied or unavailable. Please use Upload mode instead.");
-        console.error(err);
       }
     }
 
@@ -157,15 +156,23 @@
 
       canvas.toBlob(blob => {
         selectedFile = new File([blob], "capture.jpg", { type: "image/jpeg" });
+
+        // Show the captured image
         const preview = document.getElementById("camera-preview");
         preview.src = URL.createObjectURL(blob);
         preview.classList.remove("hidden");
+
+        // Enable classify button
         document.getElementById("scan-btn").removeAttribute("disabled");
-        stopCamera();
+
+        // Stop live feed — ONLY hides the video, not the captured preview or result
+        stopCameraStream();
       }, "image/jpeg", 0.9);
     }
 
-    function stopCamera() {
+    // Stops the camera stream and resets video UI only.
+    // Never touches the captured preview image or the result card.
+    function stopCameraStream() {
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
         stream = null;
@@ -179,7 +186,7 @@
       document.getElementById("btn-stop-cam").classList.add("hidden");
     }
 
-    // ── Upload function ──
+    // ── Upload ──
     function handleFile(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -211,18 +218,25 @@
         const data = await res.json();
         document.getElementById("loading").classList.add("hidden");
 
-        if (data.error) { alert(data.error); return; }
+        if (data.error) {
+          alert(data.error);
+          document.getElementById("scan-btn").removeAttribute("disabled");
+          return;
+        }
 
         showResult(data);
         student.tokens += data.tokens_earned;
         student.total_scans += 1;
         localStorage.setItem("student", JSON.stringify(student));
+
       } catch (err) {
         document.getElementById("loading").classList.add("hidden");
         alert("Could not reach the server. Is the backend running?");
+        document.getElementById("scan-btn").removeAttribute("disabled");
       }
     }
 
+    // ── Show result — result card stays until Scan Another is clicked ──
     function showResult(data) {
       document.getElementById("result-category").textContent = capitalize(data.category);
       document.getElementById("result-category").className = `result-category waste-tag ${data.category}`;
@@ -233,35 +247,39 @@
       document.getElementById("result-marine").textContent = data.marine_risk;
 
       const tier = data.gacha_tier;
-      const tierEl = document.getElementById("result-tier");
-      tierEl.textContent = tier;
-      tierEl.className = `result-value tier-${tier.toLowerCase()}`;
-
+      document.getElementById("result-tier").textContent = tier;
+      document.getElementById("result-tier").className = `result-value tier-${tier.toLowerCase()}`;
       document.getElementById("gacha-tokens").textContent = `+${data.tokens_earned}`;
       document.getElementById("gacha-reveal").className = `gacha-reveal tier-bg-${tier.toLowerCase()}`;
       document.getElementById("tip-text").textContent = data.eco_tip;
 
-      document.getElementById("result-card").classList.remove("hidden");
-      document.getElementById("result-card").scrollIntoView({ behavior: "smooth" });
+      // Show the result card first, then scroll after a short pause
+      // The delay stops the scroll from competing with DOM updates
+      const card = document.getElementById("result-card");
+      card.classList.remove("hidden");
+      setTimeout(() => card.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
     }
 
+    // ── Full reset — ONLY triggered by the "Scan Another" button ──
     function resetScan() {
       selectedFile = null;
 
-      // reset upload
+      // Reset upload section
       const fi = document.getElementById("file-input");
       if (fi) fi.value = "";
-      const up = document.getElementById("upload-preview");
-      if (up) { up.classList.add("hidden"); }
-      const ui = document.getElementById("upload-inner");
-      if (ui) ui.classList.remove("hidden");
+      document.getElementById("upload-preview").classList.add("hidden");
+      document.getElementById("upload-inner").classList.remove("hidden");
 
-      // reset camera preview
-      const cp = document.getElementById("camera-preview");
-      if (cp) cp.classList.add("hidden");
+      // Reset camera section
+      document.getElementById("camera-preview").classList.add("hidden");
+      stopCameraStream();
 
-      document.getElementById("scan-btn").setAttribute("disabled", true);
+      // Hide result card and re-enable classify button
       document.getElementById("result-card").classList.add("hidden");
+      document.getElementById("scan-btn").setAttribute("disabled", true);
+
+      // Scroll back to top of page
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   </script>
 </body>
