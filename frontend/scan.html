@@ -14,6 +14,7 @@
     <div class="nav-links">
       <a href="dashboard.html" class="nav-link">Dashboard</a>
       <a href="leaderboard.html" class="nav-link">Leaderboard</a>
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀️</button>
       <button class="btn-logout" onclick="logout()">Log Out</button>
     </div>
   </nav>
@@ -22,32 +23,44 @@
 
     <div class="scan-header">
       <h2 class="page-title">Scan Waste</h2>
-      <p class="page-sub">Upload a photo of your waste item and the AI will classify it.</p>
+      <p class="page-sub">Take a photo or upload an image — the AI will classify it and award EcoTokens.</p>
     </div>
 
-    <!-- Upload zone -->
-    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
-      <div class="upload-inner" id="upload-inner">
-        <div class="upload-icon">📷</div>
-        <p class="upload-text">Click to upload an image</p>
-        <p class="upload-hint">JPG, PNG — clear photo of one item</p>
+    <!-- Mode switcher: Camera vs Upload -->
+    <div class="input-mode-row">
+      <button class="mode-btn active" id="mode-camera" onclick="switchMode('camera')">📷 Use Camera</button>
+      <button class="mode-btn" id="mode-upload" onclick="switchMode('upload')">📁 Upload Image</button>
+    </div>
+
+    <!-- ── CAMERA MODE ── -->
+    <div id="camera-section">
+      <div class="camera-zone" id="camera-zone">
+        <p class="camera-prompt" id="camera-prompt">Click "Start Camera" to begin</p>
+        <video id="camera-video" autoplay playsinline class="hidden"></video>
+        <canvas id="camera-canvas"></canvas>
       </div>
-      <img id="preview-img" class="preview-img hidden" alt="Waste preview" />
-    </div>
-    <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)" />
-
-    <div class="camera-action-row">
-      <button class="btn-secondary" type="button" onclick="openCamera()">Use Camera</button>
-    </div>
-
-    <div class="camera-pane hidden" id="camera-pane">
-      <video id="camera-stream" class="camera-stream" autoplay playsinline muted></video>
-      <div class="camera-controls">
-        <button class="btn-secondary" type="button" onclick="captureCameraPhoto()">Take Photo</button>
-        <button class="btn-secondary" type="button" onclick="stopCamera()">Cancel Camera</button>
+      <div style="display:flex; gap:0.75rem; margin-top:0.75rem;">
+        <button class="btn-capture" id="btn-start-cam" onclick="startCamera()">Start Camera</button>
+        <button class="btn-capture hidden" id="btn-capture" onclick="capturePhoto()" style="background:var(--teal)">📸 Capture</button>
+        <button class="btn-capture hidden" id="btn-stop-cam" onclick="stopCamera()" style="background:transparent; border:1px solid var(--border); color:var(--text-muted);">Stop</button>
       </div>
+      <img id="camera-preview" class="preview-img hidden" alt="Captured photo" style="margin-top:0.75rem; width:100%; border-radius:var(--radius);" />
     </div>
 
+    <!-- ── UPLOAD MODE ── -->
+    <div id="upload-section" class="hidden">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-inner" id="upload-inner">
+          <div class="upload-icon">📁</div>
+          <p class="upload-text">Click to choose an image</p>
+          <p class="upload-hint">JPG, PNG — clear photo of one item</p>
+        </div>
+        <img id="upload-preview" class="preview-img hidden" alt="Waste preview" />
+      </div>
+      <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFile(event)" />
+    </div>
+
+    <!-- Classify button -->
     <button class="btn-primary btn-scan" id="scan-btn" onclick="submitScan()" disabled>
       Classify &amp; Earn
     </button>
@@ -103,72 +116,86 @@
   <script>
     const student = requireAuth();
     let selectedFile = null;
-    let cameraStream = null;
+    let stream = null;
+    let currentMode = "camera";
 
-    function setSelectedFile(file, previewUrl) {
-      selectedFile = file;
-      const img = document.getElementById("preview-img");
-      img.src = previewUrl;
-      img.classList.remove("hidden");
-      document.getElementById("upload-inner").classList.add("hidden");
-      document.getElementById("camera-pane").classList.add("hidden");
-      document.getElementById("scan-btn").removeAttribute("disabled");
+    // ── Mode switching ──
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById("mode-camera").classList.toggle("active", mode === "camera");
+      document.getElementById("mode-upload").classList.toggle("active", mode === "upload");
+      document.getElementById("camera-section").classList.toggle("hidden", mode !== "camera");
+      document.getElementById("upload-section").classList.toggle("hidden", mode !== "upload");
+
+      if (mode !== "camera") stopCamera();
+      resetScan();
     }
 
+    // ── Camera functions ──
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        const video = document.getElementById("camera-video");
+        video.srcObject = stream;
+        video.classList.remove("hidden");
+        document.getElementById("camera-prompt").classList.add("hidden");
+        document.getElementById("btn-start-cam").classList.add("hidden");
+        document.getElementById("btn-capture").classList.remove("hidden");
+        document.getElementById("btn-stop-cam").classList.remove("hidden");
+      } catch (err) {
+        alert("Camera access denied or unavailable. Please use Upload mode instead.");
+        console.error(err);
+      }
+    }
+
+    function capturePhoto() {
+      const video = document.getElementById("camera-video");
+      const canvas = document.getElementById("camera-canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+
+      canvas.toBlob(blob => {
+        selectedFile = new File([blob], "capture.jpg", { type: "image/jpeg" });
+        const preview = document.getElementById("camera-preview");
+        preview.src = URL.createObjectURL(blob);
+        preview.classList.remove("hidden");
+        document.getElementById("scan-btn").removeAttribute("disabled");
+        stopCamera();
+      }, "image/jpeg", 0.9);
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      const video = document.getElementById("camera-video");
+      video.srcObject = null;
+      video.classList.add("hidden");
+      document.getElementById("camera-prompt").classList.remove("hidden");
+      document.getElementById("btn-start-cam").classList.remove("hidden");
+      document.getElementById("btn-capture").classList.add("hidden");
+      document.getElementById("btn-stop-cam").classList.add("hidden");
+    }
+
+    // ── Upload function ──
     function handleFile(e) {
       const file = e.target.files[0];
       if (!file) return;
-
+      selectedFile = file;
       const reader = new FileReader();
       reader.onload = ev => {
-        setSelectedFile(file, ev.target.result);
+        const img = document.getElementById("upload-preview");
+        img.src = ev.target.result;
+        img.classList.remove("hidden");
+        document.getElementById("upload-inner").classList.add("hidden");
+        document.getElementById("scan-btn").removeAttribute("disabled");
       };
       reader.readAsDataURL(file);
     }
 
-    async function openCamera() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Camera access is not supported in this browser.");
-        return;
-      }
-
-      try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        const video = document.getElementById("camera-stream");
-        video.srcObject = cameraStream;
-        document.getElementById("camera-pane").classList.remove("hidden");
-        document.getElementById("upload-inner").classList.add("hidden");
-        document.getElementById("preview-img").classList.add("hidden");
-      } catch (err) {
-        alert("Unable to open the camera. Please check permissions or use file upload.");
-      }
-    }
-
-    function stopCamera() {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-      }
-      document.getElementById("camera-pane").classList.add("hidden");
-      document.getElementById("upload-inner").classList.remove("hidden");
-    }
-
-    function captureCameraPhoto() {
-      if (!cameraStream) return;
-      const video = document.getElementById("camera-stream");
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => {
-        if (!blob) return;
-        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
-        setSelectedFile(file, URL.createObjectURL(blob));
-        stopCamera();
-      }, "image/jpeg", 0.92);
-    }
-
+    // ── Submit to AI backend ──
     async function submitScan() {
       if (!selectedFile) return;
 
@@ -180,17 +207,11 @@
       formData.append("student_id", student.id);
 
       try {
-        const res = await fetch(`${API_BASE}/api/scan/classify`, {
-          method: "POST",
-          body: formData
-        });
+        const res = await fetch(`${API_BASE}/api/scan/classify`, { method: "POST", body: formData });
         const data = await res.json();
         document.getElementById("loading").classList.add("hidden");
 
-        if (data.error) {
-          alert(data.error);
-          return;
-        }
+        if (data.error) { alert(data.error); return; }
 
         showResult(data);
         student.tokens += data.tokens_earned;
@@ -205,7 +226,8 @@
     function showResult(data) {
       document.getElementById("result-category").textContent = capitalize(data.category);
       document.getElementById("result-category").className = `result-category waste-tag ${data.category}`;
-      document.getElementById("result-confidence").textContent = `${data.confidence}% confident${data.demo_mode ? " (demo)" : ""}`;
+      document.getElementById("result-confidence").textContent =
+        `${data.confidence}% confident${data.demo_mode ? " (demo)" : ""}`;
       document.getElementById("result-disposal").textContent = data.disposal;
       document.getElementById("result-decomp").textContent = data.decomp;
       document.getElementById("result-marine").textContent = data.marine_risk;
@@ -217,7 +239,6 @@
 
       document.getElementById("gacha-tokens").textContent = `+${data.tokens_earned}`;
       document.getElementById("gacha-reveal").className = `gacha-reveal tier-bg-${tier.toLowerCase()}`;
-
       document.getElementById("tip-text").textContent = data.eco_tip;
 
       document.getElementById("result-card").classList.remove("hidden");
@@ -226,10 +247,19 @@
 
     function resetScan() {
       selectedFile = null;
-      document.getElementById("file-input").value = "";
-      stopCamera();
-      document.getElementById("preview-img").classList.add("hidden");
-      document.getElementById("upload-inner").classList.remove("hidden");
+
+      // reset upload
+      const fi = document.getElementById("file-input");
+      if (fi) fi.value = "";
+      const up = document.getElementById("upload-preview");
+      if (up) { up.classList.add("hidden"); }
+      const ui = document.getElementById("upload-inner");
+      if (ui) ui.classList.remove("hidden");
+
+      // reset camera preview
+      const cp = document.getElementById("camera-preview");
+      if (cp) cp.classList.add("hidden");
+
       document.getElementById("scan-btn").setAttribute("disabled", true);
       document.getElementById("result-card").classList.add("hidden");
     }

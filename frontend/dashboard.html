@@ -14,15 +14,17 @@
     <div class="nav-links">
       <a href="scan.html" class="nav-link">Scan</a>
       <a href="leaderboard.html" class="nav-link">Leaderboard</a>
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀️</button>
       <button class="btn-logout" onclick="logout()">Log Out</button>
     </div>
   </nav>
 
   <main class="page dashboard-page">
 
+    <!-- Hero -->
     <div class="dashboard-hero">
       <div>
-        <p class="greeting" id="greeting">Welcome back,</p>
+        <p class="greeting">Welcome back,</p>
         <h2 class="student-name" id="student-name">—</h2>
         <p class="matric" id="student-matric"></p>
       </div>
@@ -32,6 +34,7 @@
       </div>
     </div>
 
+    <!-- Stats -->
     <div class="stats-row">
       <div class="stat-card">
         <span class="stat-value" id="stat-scans">0</span>
@@ -49,18 +52,16 @@
       </div>
     </div>
 
-    <!-- Redeem section -->
-    <section class="card redeem-card">
-      <h3 class="card-title">Redeem EcoTokens</h3>
-      <p class="card-sub">Minimum 10 tokens per redemption.</p>
-      <div class="redeem-row">
-        <input type="number" id="redeem-amount" placeholder="Enter amount" min="10" />
-        <button class="btn-primary" onclick="handleRedeem()">Redeem</button>
+    <!-- ── Reward Shop ── -->
+    <section class="card">
+      <h3 class="card-title">🛍 Reward Shop</h3>
+      <p class="card-sub">Spend your EcoTokens on badges, coupons, and mystery crates.</p>
+      <div class="shop-grid" id="shop-grid">
+        <p class="empty-state">Loading shop...</p>
       </div>
-      <p id="redeem-msg" class="form-msg"></p>
     </section>
 
-    <!-- Scan history -->
+    <!-- ── Scan history ── -->
     <section class="card">
       <h3 class="card-title">Recent Scans</h3>
       <div id="history-list" class="history-list">
@@ -70,26 +71,115 @@
 
   </main>
 
+  <!-- ── Redeem Modal ── -->
+  <div class="modal-overlay hidden" id="redeem-modal">
+    <div class="modal">
+      <span class="modal-icon" id="modal-icon">📦</span>
+      <h3 class="modal-title" id="modal-title">Reward Name</h3>
+      <p class="modal-desc" id="modal-desc">Description goes here.</p>
+      <div class="modal-cost" id="modal-cost">50 <small>EcoTokens</small></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" id="modal-confirm" onclick="confirmRedeem()">Redeem</button>
+      </div>
+      <p class="modal-msg form-msg" id="modal-msg"></p>
+    </div>
+  </div>
+
   <script src="js/app.js"></script>
   <script>
     const student = requireAuth();
+    let selectedReward = null;
 
-    document.getElementById("greeting").textContent = `Welcome back,`;
+    // Populate header
     document.getElementById("student-name").textContent = student.name;
     document.getElementById("student-matric").textContent = student.matric_number;
     document.getElementById("token-count").textContent = student.tokens;
     document.getElementById("stat-scans").textContent = student.total_scans;
     document.getElementById("stat-tokens").textContent = student.tokens;
 
+    // ── Load shop ──
+    async function loadShop() {
+      const items = await api("/api/rewards/shop");
+      const grid = document.getElementById("shop-grid");
+      if (!items || items.error) {
+        grid.innerHTML = `<p class="empty-state">Could not load shop.</p>`;
+        return;
+      }
+      grid.innerHTML = items.map(item => `
+        <div class="shop-item" onclick="openModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+          <span class="shop-item-icon">${item.icon}</span>
+          <span class="shop-item-name">${item.name}</span>
+          <span class="shop-item-desc">${item.description}</span>
+          <div class="shop-item-footer">
+            <span class="shop-item-cost">🪙 ${item.cost}</span>
+            <span class="shop-item-rarity rarity-${item.rarity}">${item.rarity}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    // ── Modal ──
+    function openModal(item) {
+      selectedReward = item;
+      document.getElementById("modal-icon").textContent = item.icon;
+      document.getElementById("modal-title").textContent = item.name;
+      document.getElementById("modal-desc").textContent = item.description;
+      document.getElementById("modal-cost").innerHTML = `${item.cost} <small>EcoTokens</small>`;
+      document.getElementById("modal-msg").textContent = "";
+      document.getElementById("modal-msg").className = "modal-msg form-msg";
+      document.getElementById("redeem-modal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("redeem-modal").classList.add("hidden");
+      selectedReward = null;
+    }
+
+    // Close modal on backdrop click
+    document.getElementById("redeem-modal").addEventListener("click", function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    async function confirmRedeem() {
+      if (!selectedReward) return;
+      const msg = document.getElementById("modal-msg");
+      const btn = document.getElementById("modal-confirm");
+      btn.disabled = true;
+      msg.textContent = "Processing...";
+      msg.className = "modal-msg form-msg";
+
+      const res = await api("/api/rewards/redeem", "POST", {
+        student_id: student.id,
+        reward_id: selectedReward.id
+      });
+
+      btn.disabled = false;
+
+      if (res.error) {
+        msg.textContent = res.error;
+        msg.className = "modal-msg form-msg error";
+      } else {
+        msg.textContent = res.message;
+        msg.className = "modal-msg form-msg success";
+        student.tokens -= selectedReward.cost;
+        localStorage.setItem("student", JSON.stringify(student));
+        document.getElementById("token-count").textContent = student.tokens;
+        document.getElementById("stat-tokens").textContent = student.tokens;
+        setTimeout(closeModal, 1800);
+      }
+    }
+
+    // ── Load history ──
     async function loadHistory() {
       const data = await api(`/api/users/${student.id}/history`);
       const list = document.getElementById("history-list");
-      if (!data.length) return;
+      if (!data || !data.length) return;
       list.innerHTML = data.map(s => `
         <div class="history-item">
           <div class="history-left">
             <span class="waste-tag ${s.waste_category}">${capitalize(s.waste_category)}</span>
-            <span class="history-tier tier-${s.gacha_tier.toLowerCase()}">${s.gacha_tier}</span>
+            <span class="tier-${s.gacha_tier.toLowerCase()}" style="font-size:0.78rem;font-weight:600;">${s.gacha_tier}</span>
           </div>
           <div class="history-right">
             <span class="history-tokens">+${s.tokens_earned} <small>tokens</small></span>
@@ -99,30 +189,7 @@
       `).join("");
     }
 
-    async function handleRedeem() {
-      const amount = parseInt(document.getElementById("redeem-amount").value);
-      const msg = document.getElementById("redeem-msg");
-
-      if (!amount || amount < 10) {
-        msg.textContent = "Enter at least 10 tokens.";
-        msg.className = "form-msg error";
-        return;
-      }
-
-      const res = await api("/api/rewards/redeem", "POST", { student_id: student.id, amount });
-      if (res.error) {
-        msg.textContent = res.error;
-        msg.className = "form-msg error";
-      } else {
-        msg.textContent = res.message;
-        msg.className = "form-msg success";
-        student.tokens -= amount;
-        localStorage.setItem("student", JSON.stringify(student));
-        document.getElementById("token-count").textContent = student.tokens;
-        document.getElementById("stat-tokens").textContent = student.tokens;
-      }
-    }
-
+    loadShop();
     loadHistory();
   </script>
 </body>

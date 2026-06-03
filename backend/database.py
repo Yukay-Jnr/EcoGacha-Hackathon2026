@@ -42,6 +42,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             student_id INTEGER NOT NULL,
             tokens_redeemed INTEGER NOT NULL,
+            reward_id TEXT,
+            reward_name TEXT,
             redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (student_id) REFERENCES students(id)
         );
