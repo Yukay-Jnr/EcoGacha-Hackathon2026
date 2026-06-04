@@ -68,10 +68,19 @@
   <script src="js/app.js"></script>
   <script>
     function showTab(tab) {
+      showTabDirect(tab);
+      // highlight the button that was clicked (only works when called from onclick)
+      if (event && event.target) event.target.classList.add("active");
+    }
+
+    function showTabDirect(tab) {
       document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
       document.querySelectorAll(".auth-form").forEach(f => f.classList.remove("active"));
       document.querySelector(`#tab-${tab}`).classList.add("active");
-      event.target.classList.add("active");
+      // highlight the matching tab button
+      const btn = document.getElementById(`mode-${tab}`) || 
+                  [...document.querySelectorAll(".tab-btn")].find(b => b.getAttribute("onclick")?.includes(`'${tab}'`));
+      if (btn) btn.classList.add("active");
     }
 
     async function handleLogin() {
@@ -107,9 +116,39 @@
       } else {
         msg.textContent = "Account created! Logging you in...";
         msg.classList.add("success");
-        setTimeout(() => showTab("login"), 1200);
+        // Auto-login with the same credentials just entered
+        const loginRes = await api("/api/auth/login", "POST", { matric_number: matric, password });
+        if (loginRes.error) {
+          // Fallback: switch to login tab with fields pre-filled
+          setTimeout(() => {
+            showTabDirect("login");
+            document.getElementById("login-matric").value = matric;
+            document.getElementById("login-password").value = password;
+          }, 800);
+        } else {
+          localStorage.setItem("student", JSON.stringify(loginRes.student));
+          setTimeout(() => window.location.href = "dashboard.html", 800);
+        }
       }
     }
+
+    // ── Enter key submits the active form ──
+    document.addEventListener("DOMContentLoaded", () => {
+      const loginFields = ["login-matric", "login-password"];
+      const registerFields = ["reg-name", "reg-matric", "reg-email", "reg-password"];
+
+      loginFields.forEach(id => {
+        document.getElementById(id).addEventListener("keydown", e => {
+          if (e.key === "Enter") handleLogin();
+        });
+      });
+
+      registerFields.forEach(id => {
+        document.getElementById(id).addEventListener("keydown", e => {
+          if (e.key === "Enter") handleRegister();
+        });
+      });
+    });
   </script>
   <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme" style="position:fixed;top:1rem;right:1rem;z-index:200">☀️</button>
 </body>
