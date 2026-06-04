@@ -87,7 +87,7 @@ Waste with higher environmental danger, higher recycling difficulty, or stronger
 | 🍶 Glass | 3–5 base | same weights |
 | 🧴 Plastic | 2–4 base | same weights |
 | 📄 Paper / Cardboard | 1–3 base | same weights |
-| 🍌 Organic | 1–2 base | same weights |
+
 
 **Epic rolls multiply base tokens by 3–5×. Rare rolls multiply by 1.5–2.5×.**
 
