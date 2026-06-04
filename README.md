@@ -97,7 +97,7 @@ Waste with higher environmental danger, higher recycling difficulty, or stronger
 
 | Layer | Technology | Why |
 |---|---|---|
-| **AI model** | Pytorch + Keras (ResNet18) | Pretrained base, easy to fine-tune on waste images |
+| **AI model** | Pytorch + ResNet18 | Pretrained base, easy to fine-tune on waste images |
 | **Backend** | Python + Flask | Simple REST API, beginner-friendly |
 | **Database** | SQLite | Zero setup, single file, fully offline |
 | **Frontend** | HTML + JavaScript | No framework needed |
