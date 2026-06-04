@@ -99,6 +99,8 @@
     document.getElementById("stat-tokens").textContent = student.tokens;
 
     // ── Load shop ──
+    let shopCatalogue = {};  // keyed by reward id — avoids passing objects through HTML attributes
+
     async function loadShop() {
       const items = await api("/api/rewards/shop");
       const grid = document.getElementById("shop-grid");
@@ -106,8 +108,11 @@
         grid.innerHTML = `<p class="empty-state">Could not load shop.</p>`;
         return;
       }
+      // Store items in JS object so onclick just passes the id string
+      items.forEach(item => { shopCatalogue[item.id] = item; });
+
       grid.innerHTML = items.map(item => `
-        <div class="shop-item" onclick="openModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+        <div class="shop-item" onclick="openModal('${item.id}')">
           <span class="shop-item-icon">${item.icon}</span>
           <span class="shop-item-name">${item.name}</span>
           <span class="shop-item-desc">${item.description}</span>
@@ -120,7 +125,9 @@
     }
 
     // ── Modal ──
-    function openModal(item) {
+    function openModal(rewardId) {
+      const item = shopCatalogue[rewardId];
+      if (!item) return;
       selectedReward = item;
       document.getElementById("modal-icon").textContent = item.icon;
       document.getElementById("modal-title").textContent = item.name;
@@ -149,24 +156,32 @@
       msg.textContent = "Processing...";
       msg.className = "modal-msg form-msg";
 
-      const res = await api("/api/rewards/redeem", "POST", {
-        student_id: student.id,
-        reward_id: selectedReward.id
-      });
+      try {
+        const res = await fetch(`${API_BASE}/api/rewards/redeem`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ student_id: student.id, reward_id: selectedReward.id })
+        });
+        const data = await res.json();
+        btn.disabled = false;
 
-      btn.disabled = false;
-
-      if (res.error) {
-        msg.textContent = res.error;
+        if (data.error) {
+          msg.textContent = data.error;
+          msg.className = "modal-msg form-msg error";
+        } else {
+          msg.textContent = data.message;
+          msg.className = "modal-msg form-msg success";
+          student.tokens -= selectedReward.cost;
+          localStorage.setItem("student", JSON.stringify(student));
+          document.getElementById("token-count").textContent = student.tokens;
+          document.getElementById("stat-tokens").textContent = student.tokens;
+          setTimeout(closeModal, 1800);
+        }
+      } catch (err) {
+        btn.disabled = false;
+        console.error("Redeem error:", err);
+        msg.textContent = "Network error. Make sure the backend is running on port 5000.";
         msg.className = "modal-msg form-msg error";
-      } else {
-        msg.textContent = res.message;
-        msg.className = "modal-msg form-msg success";
-        student.tokens -= selectedReward.cost;
-        localStorage.setItem("student", JSON.stringify(student));
-        document.getElementById("token-count").textContent = student.tokens;
-        document.getElementById("stat-tokens").textContent = student.tokens;
-        setTimeout(closeModal, 1800);
       }
     }
 
