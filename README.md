@@ -257,8 +257,8 @@ Once your teammate finishes training:
 | Name | Role |
 |---|---|
 | Uduak Umobit-Jnr | Frontend, UI design & system architecture |
-| Godswill James | Frontend, UI design & documentation |
-| Uniokid Uwak | AI model, testing & backend |
+| Godswill James | AI model, testing & backend |
+| Uniokid Uwak |Frontend, UI design & documentation |
 
 ---
 
