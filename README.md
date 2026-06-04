@@ -83,8 +83,6 @@ Waste with higher environmental danger, higher recycling difficulty, or stronger
 
 | Waste Type | Token Range | Gacha Tier Weights |
 |---|---|---|
-| 🔌 E-Waste | 10–15 base | 60% Common · 30% Rare · 10% Epic |
-| 🔋 Battery | 8–12 base | same weights |
 | 🥫 Metal | 4–6 base | same weights |
 | 🍶 Glass | 3–5 base | same weights |
 | 🧴 Plastic | 2–4 base | same weights |
