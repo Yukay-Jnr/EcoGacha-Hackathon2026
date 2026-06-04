@@ -35,14 +35,14 @@ Students upload a photo of their waste item, the AI classifies it, and they earn
 
 ## ✨ Features
 
-- 🤖 **AI waste classification** — TensorFlow + Keras (ResNet18) identifies waste from uploaded photos
+- 🤖 **AI waste classification** — PyTorch + Keras (ResNet18) identifies waste from uploaded photos
 - 🎰 **Gacha reward system** — weighted random token amounts; rarer waste earns more
 - 🌿 **Eco tip on every scan** — one quick fact shown after each classification
 - 👤 **Student accounts** — matric number + email, personal token wallet
 - 📊 **Dashboard** — token balance, scan history, and quick redeem
 - 🏆 **Leaderboard** — top campus eco contributors ranked by tokens
 - 💰 **Token redemption** — cash out via the web app or at the campus token stall
-- 🖥️ **Demo mode** — works without a trained model for testing
+
 
 ---
 
@@ -55,7 +55,7 @@ Student registers / logs in with matric number
 Uploads a photo of their waste item
         │
         ▼
-TensorFlow model classifies the waste
+PyTorch model classifies the waste
 (cardboard · glass · metal · organic · paper · plastic · e-waste)
         │
         ▼
@@ -83,13 +83,11 @@ Waste with higher environmental danger, higher recycling difficulty, or stronger
 
 | Waste Type | Token Range | Gacha Tier Weights |
 |---|---|---|
-| 🔌 E-Waste | 10–15 base | 60% Common · 30% Rare · 10% Epic |
-| 🔋 Battery | 8–12 base | same weights |
 | 🥫 Metal | 4–6 base | same weights |
 | 🍶 Glass | 3–5 base | same weights |
 | 🧴 Plastic | 2–4 base | same weights |
 | 📄 Paper / Cardboard | 1–3 base | same weights |
-| 🍌 Organic | 1–2 base | same weights |
+
 
 **Epic rolls multiply base tokens by 3–5×. Rare rolls multiply by 1.5–2.5×.**
 
@@ -102,12 +100,11 @@ Waste with higher environmental danger, higher recycling difficulty, or stronger
 | **AI model** | Pytorch + Keras (ResNet18) | Pretrained base, easy to fine-tune on waste images |
 | **Backend** | Python + Flask | Simple REST API, beginner-friendly |
 | **Database** | SQLite | Zero setup, single file, fully offline |
-| **Frontend** | HTML + CSS + JavaScript | No framework needed |
-| **Styling** | Tailwind CSS (CDN) | Clean dark UI with minimal effort |
+| **Frontend** | HTML + JavaScript | No framework needed |
+| **Styling** | CSS | Clean dark UI with minimal effort |
 | **Backend hosting** | Render (free tier) | Deploy from GitHub in minutes |
 | **Frontend hosting** | Vercel | Instant static deploy, free |
 
-**SQLite runs fully offline** — no internet needed for the database. Perfect for a local demo on a laptop.
 
 ---
 
@@ -236,13 +233,12 @@ Once your teammate finishes training:
 
 ## 🗺️ Roadmap
 
-- [x] AI waste classification (TensorFlow + MobileNetV2)
+- [x] AI waste classification (PyTorch + ResNet18)
 - [x] Flask REST API with student accounts
 - [x] Gacha reward system with weighted tiers
 - [x] Token wallet, dashboard, and leaderboard
 - [x] Token redemption
 - [x] Eco tip on every scan
-- [x] Demo mode (no model required for testing)
 - [ ] EcoDex — full waste education module
 - [ ] Marketplace — trade and swap upcyclable materials
 - [ ] Upcycling group directory (Uyo-based)
