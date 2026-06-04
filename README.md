@@ -35,7 +35,7 @@ Students upload a photo of their waste item, the AI classifies it, and they earn
 
 ## ✨ Features
 
-- 🤖 **AI waste classification** — TensorFlow + Keras (MobileNetV2) identifies waste from uploaded photos
+- 🤖 **AI waste classification** — TensorFlow + Keras (RestNet18) identifies waste from uploaded photos
 - 🎰 **Gacha reward system** — weighted random token amounts; rarer waste earns more
 - 🌿 **Eco tip on every scan** — one quick fact shown after each classification
 - 👤 **Student accounts** — matric number + email, personal token wallet
