@@ -1,5 +1,6 @@
 // ─── API base — change to your Render URL when deployed ───
-const API_BASE = "http://localhost:5000";
+// const API_BASE = "http://localhost:5000";
+const API_BASE = "https://ecogacha-xxxx.onrender.com";
 
 async function api(path, method = "GET", body = null) {
   const opts = { method, headers: { "Content-Type": "application/json" } };
