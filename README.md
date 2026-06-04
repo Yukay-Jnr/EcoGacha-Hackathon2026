@@ -194,8 +194,6 @@ API runs at:
 http://localhost:5000
 ```
 
-> 💡 No trained model yet? That's fine — the backend runs in **demo mode** automatically and returns mock classifications so you can test everything end-to-end.
-
 ---
 
 ### 4. Open the frontend
@@ -206,30 +204,6 @@ Open `frontend/index.html` in your browser. Keep the backend running in the back
 
 ---
 
-### 5. Add the trained model (when ready)
-
-Once your teammate finishes training:
-
-1. Save the model as `model.h5`
-2. Drop it into `ai_model/`
-3. Make sure `ai_model/labels.txt` lists the same categories used in training (one per line)
-4. Restart the backend — it will auto-detect and load the model
-
----
-
-## 📡 API endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/auth/register` | Register with name, matric, email, password |
-| `POST` | `/api/auth/login` | Login with matric + password |
-| `POST` | `/api/scan/classify` | Upload image + student_id → classification + reward |
-| `GET` | `/api/users/<id>/balance` | Get token balance and scan count |
-| `GET` | `/api/users/<id>/history` | Last 20 scans |
-| `GET` | `/api/users/leaderboard` | Top 10 students by tokens |
-| `POST` | `/api/rewards/redeem` | Redeem tokens (min 10) |
-
----
 
 ## 🗺️ Roadmap
 
@@ -244,7 +218,6 @@ Once your teammate finishes training:
 - [ ] Upcycling group directory (Uyo-based)
 - [ ] Campus issue reporting (drainage, waste, odour alerts)
 - [ ] Mobile-friendly QR scan integration
-- [ ] Mobile app
 
 ---
 
@@ -255,12 +228,6 @@ Once your teammate finishes training:
 | Uduak Umobit-Jnr | Frontend, UI design & system architecture |
 | Godswill James | AI model, testing & backend |
 | Uniokid Uwak |Frontend, UI design & documentation |
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
