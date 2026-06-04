@@ -1,13 +1,20 @@
 import sqlite3
 import os
-
+DB_URL = os.environ.get("DATABASE_URL")  # set on Render, empty locally
 DB_PATH = os.path.join(os.path.dirname(__file__), "ecogacha.db")
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if DB_URL:
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect(DB_URL)
+        conn.cursor_factory = psycopg2.extras.RealDictCursor
+        return conn
+    else:
+        conn = sqlite3.connect("ecogacha.db")
+        conn.row_factory = sqlite3.Row
+        return conn
 
 
 def init_db():
