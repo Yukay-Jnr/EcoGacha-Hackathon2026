@@ -27,7 +27,7 @@ _Scan your waste. Earn EcoTokens._
 
 Students upload a photo of their waste item, the AI classifies it, and they earn EcoTokens through a weighted gacha-style reward — rarer and more hazardous waste earns bigger rewards. Tokens accumulate in a personal wallet and can be redeemed on campus.
 
-> ♻️ This is the v1 smart-bin demo, built to run on a local machine for the hackathon. The web dashboard, leaderboard, and token system are fully functional. Future phases will add a marketplace, EcoDex education module, upcycling group directory, and campus issue reporting.
+> ♻️ This is the v1 smart-bin demo, built to run on a local machine for the hackathon. The web dashboard, leaderboard, and token system are fully functional. Future phases will add the physical hardware for the bin, a marketplace, EcoDex education module, upcycling group directory, and campus issue reporting.
 
 **Hackathon theme:** *"Climate Change, Marine Pollution and the Quest for Sustainable Blue Economy in Nigeria."*
 
@@ -129,18 +129,18 @@ ecogacha/
 │       └── token_service.py    # Gacha logic, token calculation, eco tips
 │
 ├── 📂 ai_model/
-│   ├── model.h5                # Trained Keras model (add after training — see notes)
+│   ├── rise_ai_model.pth                # Trained Keras model (add after training — see notes)
 │   ├── labels.txt              # One category per line
 │   └── training_notes.md       # How to train and export the model
 │
 ├── 📂 frontend/
 │   ├── index.html              # Login + register
 │   ├── dashboard.html          # Token balance, history, redeem
-│   ├── scan.html               # Upload image → classify → see result
+│   ├── scan.html               # Scan/Upload image → classify → see result
 │   ├── leaderboard.html        # Campus rankings
 │   │
 │   ├── css/
-│   │   └── style.css           # Full dark-theme stylesheet
+│   │   └── style.css           # Full dark-theme and light-theme stylesheet
 │   │
 │   └── js/
 │       └── app.js              # Shared API helper, auth, utilities
@@ -225,7 +225,7 @@ Open `frontend/index.html` in your browser. Keep the backend running in the back
 
 | Name | Role |
 |---|---|
-| Uduak Umobit-Jnr | Frontend, UI design & system architecture |
+| Uduak Umobit-Jnr | Frontend, and UI design |
 | Godswill James | AI model, testing & backend |
 | Uniokid Uwak |Frontend, UI design & documentation |
 
