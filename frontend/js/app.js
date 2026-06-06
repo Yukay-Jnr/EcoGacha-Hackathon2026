@@ -1,6 +1,9 @@
 // ─── API base — change to your Render URL when deployed ───
 // const API_BASE = "http://localhost:5000";
-const API_BASE = "ecogacha-hackathon2026-production.up.railway.app";
+// const API_BASE = "ecogacha-hackathon2026-production.up.railway.app";
+const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"
+  ? "http://localhost:5000"
+  : "";
 
 async function api(path, method = "GET", body = null) {
   const opts = { method, headers: { "Content-Type": "application/json" } };

@@ -22,3 +22,5 @@ venv/
 # Env files
 .env
 *.env
+
+backend/frontend/
