@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask
 from flask_cors import CORS
 from database import init_db
@@ -18,4 +20,5 @@ app.register_blueprint(users_bp, url_prefix="/api/users")
 if __name__ == "__main__":
     init_db()
     load_model()          # loads rise_ai_model.pth — falls back to demo if not found
-    app.run(debug=True, port=5000)
+    # app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
