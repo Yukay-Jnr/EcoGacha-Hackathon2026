@@ -1,7 +1,0 @@
-cardboard
-glass
-metal
-organic
-paper
-plastic
-trash

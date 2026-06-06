@@ -119,7 +119,7 @@ a:hover { text-decoration: underline; }
 .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
 
 /* ─── Auth page ─── */
-.auth-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; position: relative; }
+.auth-page { display: flex; align-items: flex-start; justify-content: center; min-height: 100vh; overflow: auto; position: relative; }
 
 .auth-bg { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
 .blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15; }

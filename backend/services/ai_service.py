@@ -5,7 +5,7 @@ import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "ai_model", "rise_ai_model.pth")
+MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ai_model", "rise_ai_model.pth")
 
 # ImageNet normalisation — must match what was used during training
 TRANSFORM = transforms.Compose([
