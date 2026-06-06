@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoGacha — Dashboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="nav-brand">♻ EcoGacha</a>
+    <div class="nav-links">
+      <a href="scan.html" class="nav-link">Scan</a>
+      <a href="leaderboard.html" class="nav-link">Leaderboard</a>
+      <a href="settings.html" class="nav-link" title="Settings">⚙️</a>
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀️</button>
+      <a href="settings.html" class="nav-icon-btn" title="Settings">⚙️</a>
+      <button class="btn-logout" onclick="logout()">Log Out</button>
+    </div>
+  </nav>
+
+  <main class="page dashboard-page">
+
+    <!-- Hero -->
+    <div class="dashboard-hero">
+      <div>
+        <p class="greeting">Welcome back,</p>
+        <h2 class="student-name" id="student-name">—</h2>
+        <p class="matric" id="student-matric"></p>
+      </div>
+      <div class="token-badge">
+        <span class="token-count" id="token-count">0</span>
+        <span class="token-label">EcoTokens</span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-value" id="stat-scans">0</span>
+        <span class="stat-label">Total Scans</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="stat-tokens">0</span>
+        <span class="stat-label">Tokens Earned</span>
+      </div>
+      <div class="stat-card">
+        <a href="scan.html" class="scan-cta">
+          <span class="scan-icon">📷</span>
+          <span>Scan Waste</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- ── Reward Shop ── -->
+    <section class="card">
+      <h3 class="card-title">🛍 Reward Shop</h3>
+      <p class="card-sub">Spend your EcoTokens on badges, coupons, and mystery crates.</p>
+      <div class="shop-grid" id="shop-grid">
+        <p class="empty-state">Loading shop...</p>
+      </div>
+    </section>
+
+    <!-- ── Scan history ── -->
+    <section class="card">
+      <h3 class="card-title">Recent Scans</h3>
+      <div id="history-list" class="history-list">
+        <p class="empty-state">No scans yet. <a href="scan.html">Start scanning!</a></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Redeem Modal ── -->
+  <div class="modal-overlay hidden" id="redeem-modal">
+    <div class="modal">
+      <span class="modal-icon" id="modal-icon">📦</span>
+      <h3 class="modal-title" id="modal-title">Reward Name</h3>
+      <p class="modal-desc" id="modal-desc">Description goes here.</p>
+      <div class="modal-cost" id="modal-cost">50 <small>EcoTokens</small></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" id="modal-confirm" onclick="confirmRedeem()">Redeem</button>
+      </div>
+      <p class="modal-msg form-msg" id="modal-msg"></p>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    const student = requireAuth();
+    let selectedReward = null;
+
+    // Populate header
+    document.getElementById("student-name").textContent = student.name;
+    document.getElementById("student-matric").textContent = student.matric_number;
+    document.getElementById("token-count").textContent = student.tokens;
+    document.getElementById("stat-scans").textContent = student.total_scans;
+    document.getElementById("stat-tokens").textContent = student.tokens;
+
+    // ── Load shop ──
+    let shopCatalogue = {};  // keyed by reward id — avoids passing objects through HTML attributes
+
+    async function loadShop() {
+      const items = await api("/api/rewards/shop");
+      const grid = document.getElementById("shop-grid");
+      if (!items || items.error) {
+        grid.innerHTML = `<p class="empty-state">Could not load shop.</p>`;
+        return;
+      }
+      // Store items in JS object so onclick just passes the id string
+      items.forEach(item => { shopCatalogue[item.id] = item; });
+
+      grid.innerHTML = items.map(item => `
+        <div class="shop-item" onclick="openModal('${item.id}')">
+          <span class="shop-item-icon">${item.icon}</span>
+          <span class="shop-item-name">${item.name}</span>
+          <span class="shop-item-desc">${item.description}</span>
+          <div class="shop-item-footer">
+            <span class="shop-item-cost">🪙 ${item.cost}</span>
+            <span class="shop-item-rarity rarity-${item.rarity}">${item.rarity}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    // ── Modal ──
+    function openModal(rewardId) {
+      const item = shopCatalogue[rewardId];
+      if (!item) return;
+      selectedReward = item;
+      document.getElementById("modal-icon").textContent = item.icon;
+      document.getElementById("modal-title").textContent = item.name;
+      document.getElementById("modal-desc").textContent = item.description;
+      document.getElementById("modal-cost").innerHTML = `${item.cost} <small>EcoTokens</small>`;
+      document.getElementById("modal-msg").textContent = "";
+      document.getElementById("modal-msg").className = "modal-msg form-msg";
+      document.getElementById("redeem-modal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("redeem-modal").classList.add("hidden");
+      selectedReward = null;
+    }
+
+    // Close modal on backdrop click
+    document.getElementById("redeem-modal").addEventListener("click", function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    async function confirmRedeem() {
+      if (!selectedReward) return;
+      const msg = document.getElementById("modal-msg");
+      const btn = document.getElementById("modal-confirm");
+      btn.disabled = true;
+      msg.textContent = "Processing...";
+      msg.className = "modal-msg form-msg";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/rewards/redeem`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ student_id: student.id, reward_id: selectedReward.id })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+
+        if (data.error) {
+          msg.textContent = data.error;
+          msg.className = "modal-msg form-msg error";
+        } else {
+          msg.textContent = data.message;
+          msg.className = "modal-msg form-msg success";
+          student.tokens -= selectedReward.cost;
+          localStorage.setItem("student", JSON.stringify(student));
+          document.getElementById("token-count").textContent = student.tokens;
+          document.getElementById("stat-tokens").textContent = student.tokens;
+          setTimeout(closeModal, 1800);
+        }
+      } catch (err) {
+        btn.disabled = false;
+        console.error("Redeem error:", err);
+        msg.textContent = "Network error. Make sure the backend is running on port 5000.";
+        msg.className = "modal-msg form-msg error";
+      }
+    }
+
+    // ── Load history ──
+    async function loadHistory() {
+      const data = await api(`/api/users/${student.id}/history`);
+      const list = document.getElementById("history-list");
+      if (!data || !data.length) return;
+      list.innerHTML = data.map(s => `
+        <div class="history-item">
+          <div class="history-left">
+            <span class="waste-tag ${s.waste_category}">${capitalize(s.waste_category)}</span>
+            <span class="tier-${s.gacha_tier.toLowerCase()}" style="font-size:0.78rem;font-weight:600;">${s.gacha_tier}</span>
+          </div>
+          <div class="history-right">
+            <span class="history-tokens">+${s.tokens_earned} <small>tokens</small></span>
+            <span class="history-date">${formatDate(s.scanned_at)}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    loadShop();
+    loadHistory();
+  </script>
+</body>
+</html>

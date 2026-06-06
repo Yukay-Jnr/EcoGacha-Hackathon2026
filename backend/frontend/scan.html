@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoGacha — Scan Waste</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="nav-brand">♻ EcoGacha</a>
+    <div class="nav-links">
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="leaderboard.html" class="nav-link">Leaderboard</a>
+      <a href="settings.html" class="nav-link" title="Settings">⚙️</a>
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀️</button>
+      <a href="settings.html" class="nav-icon-btn" title="Settings">⚙️</a>
+      <button class="btn-logout" onclick="logout()">Log Out</button>
+    </div>
+  </nav>
+
+  <main class="page scan-page">
+
+    <div class="scan-header">
+      <h2 class="page-title">Scan Waste</h2>
+      <p class="page-sub">Take a photo or upload an image — the AI will classify it and award EcoTokens.</p>
+    </div>
+
+    <!-- Mode switcher -->
+    <div class="input-mode-row">
+      <button class="mode-btn active" id="mode-camera" onclick="switchMode('camera')">📷 Use Camera</button>
+      <button class="mode-btn" id="mode-upload" onclick="switchMode('upload')">📁 Upload Image</button>
+    </div>
+
+    <!-- CAMERA MODE -->
+    <div id="camera-section">
+      <div class="camera-zone" id="camera-zone">
+        <p class="camera-prompt" id="camera-prompt">Click "Start Camera" to begin</p>
+        <video id="camera-video" autoplay playsinline class="hidden"></video>
+        <canvas id="camera-canvas"></canvas>
+      </div>
+      <div style="display:flex; gap:0.75rem; margin-top:0.75rem;">
+        <button class="btn-capture" id="btn-start-cam" onclick="startCamera()">Start Camera</button>
+        <button class="btn-capture hidden" id="btn-capture" onclick="capturePhoto()" style="background:var(--teal)">📸 Capture</button>
+        <button class="btn-capture hidden" id="btn-stop-cam" onclick="stopCameraStream()" style="background:transparent; border:1px solid var(--border); color:var(--text-muted);">Stop</button>
+      </div>
+      <!-- captured photo stays visible here until Scan Another is clicked -->
+      <img id="camera-preview" class="preview-img hidden" alt="Captured photo" style="margin-top:0.75rem; width:100%; border-radius:var(--radius);" />
+    </div>
+
+    <!-- UPLOAD MODE -->
+    <div id="upload-section" class="hidden">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-inner" id="upload-inner">
+          <div class="upload-icon">📁</div>
+          <p class="upload-text">Click to choose an image</p>
+          <p class="upload-hint">JPG, PNG — clear photo of one item</p>
+        </div>
+        <img id="upload-preview" class="preview-img hidden" alt="Waste preview" />
+      </div>
+      <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFile(event)" />
+    </div>
+
+    <!-- Classify button -->
+    <button class="btn-primary btn-scan" id="scan-btn" onclick="submitScan()" disabled>
+      Classify &amp; Earn
+    </button>
+
+    <!-- Result card — stays visible until Scan Another is clicked -->
+    <div class="result-card hidden" id="result-card">
+      <div class="result-header">
+        <div class="result-category" id="result-category">—</div>
+        <div class="result-confidence" id="result-confidence"></div>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-item">
+          <span class="result-label">Dispose In</span>
+          <span class="result-value" id="result-disposal">—</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">Decomposition</span>
+          <span class="result-value" id="result-decomp">—</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">Marine Risk</span>
+          <span class="result-value" id="result-marine">—</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">Gacha Tier</span>
+          <span class="result-value" id="result-tier">—</span>
+        </div>
+      </div>
+
+      <div class="gacha-reveal" id="gacha-reveal">
+        <div class="gacha-label">You earned</div>
+        <div class="gacha-tokens" id="gacha-tokens">0</div>
+        <div class="gacha-unit">EcoTokens</div>
+      </div>
+
+      <div class="eco-tip">
+        <span class="tip-icon">🌿</span>
+        <p id="tip-text"></p>
+      </div>
+
+      <button class="btn-secondary" onclick="resetScan()">Scan Another</button>
+    </div>
+
+    <div class="loading-overlay hidden" id="loading">
+      <div class="spinner"></div>
+      <p>AI is classifying your waste...</p>
+    </div>
+
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    const student = requireAuth();
+    let selectedFile = null;
+    let stream = null;
+    let currentMode = "camera";
+
+    // ── Mode switching ──
+    // Only switches the visible panel. Does NOT reset or hide the result card.
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById("mode-camera").classList.toggle("active", mode === "camera");
+      document.getElementById("mode-upload").classList.toggle("active", mode === "upload");
+      document.getElementById("camera-section").classList.toggle("hidden", mode !== "camera");
+      document.getElementById("upload-section").classList.toggle("hidden", mode !== "upload");
+      if (mode !== "camera") stopCameraStream();
+    }
+
+    // ── Camera ──
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        const video = document.getElementById("camera-video");
+        video.srcObject = stream;
+        video.classList.remove("hidden");
+        document.getElementById("camera-prompt").classList.add("hidden");
+        document.getElementById("btn-start-cam").classList.add("hidden");
+        document.getElementById("btn-capture").classList.remove("hidden");
+        document.getElementById("btn-stop-cam").classList.remove("hidden");
+      } catch (err) {
+        alert("Camera access denied or unavailable. Please use Upload mode instead.");
+      }
+    }
+
+    function capturePhoto() {
+      const video = document.getElementById("camera-video");
+      const canvas = document.getElementById("camera-canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+
+      canvas.toBlob(blob => {
+        selectedFile = new File([blob], "capture.jpg", { type: "image/jpeg" });
+
+        // Show the captured image
+        const preview = document.getElementById("camera-preview");
+        preview.src = URL.createObjectURL(blob);
+        preview.classList.remove("hidden");
+
+        // Enable classify button
+        document.getElementById("scan-btn").removeAttribute("disabled");
+
+        // Stop live feed — ONLY hides the video, not the captured preview or result
+        stopCameraStream();
+      }, "image/jpeg", 0.9);
+    }
+
+    // Stops the camera stream and resets video UI only.
+    // Never touches the captured preview image or the result card.
+    function stopCameraStream() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      const video = document.getElementById("camera-video");
+      video.srcObject = null;
+      video.classList.add("hidden");
+      document.getElementById("camera-prompt").classList.remove("hidden");
+      document.getElementById("btn-start-cam").classList.remove("hidden");
+      document.getElementById("btn-capture").classList.add("hidden");
+      document.getElementById("btn-stop-cam").classList.add("hidden");
+    }
+
+    // ── Upload ──
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = document.getElementById("upload-preview");
+        img.src = ev.target.result;
+        img.classList.remove("hidden");
+        document.getElementById("upload-inner").classList.add("hidden");
+        document.getElementById("scan-btn").removeAttribute("disabled");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ── Submit to AI backend ──
+    async function submitScan() {
+      if (!selectedFile) return;
+
+      document.getElementById("loading").classList.remove("hidden");
+      document.getElementById("scan-btn").setAttribute("disabled", true);
+
+      const formData = new FormData();
+      formData.append("image", selectedFile);
+      formData.append("student_id", student.id);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/scan/classify`, { method: "POST", body: formData });
+        const data = await res.json();
+        document.getElementById("loading").classList.add("hidden");
+
+        if (data.error) {
+          alert(data.error);
+          document.getElementById("scan-btn").removeAttribute("disabled");
+          return;
+        }
+
+        showResult(data);
+        student.tokens += data.tokens_earned;
+        student.total_scans += 1;
+        localStorage.setItem("student", JSON.stringify(student));
+
+      } catch (err) {
+        document.getElementById("loading").classList.add("hidden");
+        alert("Could not reach the server. Is the backend running?");
+        document.getElementById("scan-btn").removeAttribute("disabled");
+      }
+    }
+
+    // ── Show result — result card stays until Scan Another is clicked ──
+    function showResult(data) {
+      document.getElementById("result-category").textContent = capitalize(data.category);
+      document.getElementById("result-category").className = `result-category waste-tag ${data.category}`;
+      document.getElementById("result-confidence").textContent =
+        `${data.confidence}% confident${data.demo_mode ? " (demo)" : ""}`;
+      document.getElementById("result-disposal").textContent = data.disposal;
+      document.getElementById("result-decomp").textContent = data.decomp;
+      document.getElementById("result-marine").textContent = data.marine_risk;
+
+      const tier = data.gacha_tier;
+      document.getElementById("result-tier").textContent = tier;
+      document.getElementById("result-tier").className = `result-value tier-${tier.toLowerCase()}`;
+      document.getElementById("gacha-tokens").textContent = `+${data.tokens_earned}`;
+      document.getElementById("gacha-reveal").className = `gacha-reveal tier-bg-${tier.toLowerCase()}`;
+      document.getElementById("tip-text").textContent = data.eco_tip;
+
+      // Show the result card first, then scroll after a short pause
+      // The delay stops the scroll from competing with DOM updates
+      const card = document.getElementById("result-card");
+      card.classList.remove("hidden");
+      setTimeout(() => card.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+    }
+
+    // ── Full reset — ONLY triggered by the "Scan Another" button ──
+    function resetScan() {
+      selectedFile = null;
+
+      // Reset upload section
+      const fi = document.getElementById("file-input");
+      if (fi) fi.value = "";
+      document.getElementById("upload-preview").classList.add("hidden");
+      document.getElementById("upload-inner").classList.remove("hidden");
+
+      // Reset camera section
+      document.getElementById("camera-preview").classList.add("hidden");
+      stopCameraStream();
+
+      // Hide result card and re-enable classify button
+      document.getElementById("result-card").classList.add("hidden");
+      document.getElementById("scan-btn").setAttribute("disabled", true);
+
+      // Scroll back to top of page
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  </script>
+</body>
+</html>

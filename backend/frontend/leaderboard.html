@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoGacha — Leaderboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="nav-brand">♻ EcoGacha</a>
+    <div class="nav-links">
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="scan.html" class="nav-link">Scan</a>
+      <a href="settings.html" class="nav-link" title="Settings">⚙️</a>
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀️</button>
+      <a href="settings.html" class="nav-icon-btn" title="Settings">⚙️</a>
+      <button class="btn-logout" onclick="logout()">Log Out</button>
+    </div>
+  </nav>
+
+  <main class="page leaderboard-page">
+    <div class="scan-header">
+      <h2 class="page-title">🏆 Leaderboard</h2>
+      <p class="page-sub">Top eco contributors on campus this season.</p>
+    </div>
+
+    <div class="card">
+      <div id="leaderboard-list" class="leaderboard-list">
+        <p class="empty-state">Loading...</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    const student = requireAuth();
+
+    async function loadLeaderboard() {
+      const data = await api("/api/users/leaderboard");
+      const list = document.getElementById("leaderboard-list");
+
+      if (!data.length) {
+        list.innerHTML = `<p class="empty-state">No entries yet.</p>`;
+        return;
+      }
+
+      const medals = ["🥇", "🥈", "🥉"];
+      list.innerHTML = data.map((s, i) => `
+        <div class="lb-row ${s.matric_number === student.matric_number ? "lb-you" : ""}">
+          <span class="lb-rank">${medals[i] || `#${i + 1}`}</span>
+          <div class="lb-info">
+            <span class="lb-name">${s.name} ${s.matric_number === student.matric_number ? "<span class='you-tag'>You</span>" : ""}</span>
+            <span class="lb-matric">${s.matric_number}</span>
+          </div>
+          <div class="lb-right">
+            <span class="lb-tokens">${s.tokens}</span>
+            <span class="lb-unit">tokens</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    loadLeaderboard();
+  </script>
+</body>
+</html>
