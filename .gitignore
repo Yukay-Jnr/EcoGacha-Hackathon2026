@@ -10,8 +10,8 @@ venv/
 # # Database — local only, do not commit
 # backend/ecogacha.db
 
-# AI model — large file, share via Google Drive or GitHub Releases
-ai_model/rise_ai_model.pth
+# # AI model — large file, share via Google Drive or GitHub Releases
+# ai_model/rise_ai_model.pth
 
 # VS Code
 .vscode/
