@@ -29,7 +29,9 @@ def static_files(path):
         return send_from_directory(FRONTEND_DIR, path)
     return send_from_directory(FRONTEND_DIR, "index.html")
 
+# runs whether gunicorn or python app.py starts the app
+init_db()
+load_model()
+
 if __name__ == "__main__":
-    init_db()
-    load_model()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
